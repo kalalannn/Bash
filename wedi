@@ -1,0 +1,337 @@
+#!/bin/sh
+#
+#
+#
+#
+#
+# Skript wrapper
+# Vytvoril Nikolaj Vorobiev (xvorob00)
+# Zima 2017
+#
+#
+#________________________________________________________________________________________________________________________________________________________
+# PROMENE
+#
+export POSIXLY_CORRECT=yes
+argc=$#
+argv1=$1
+argv2=$2
+argv3=$3
+DATE1=`date +%F`
+DATE2=`date +%T`
+AKT=`pwd`
+PRVNI=`echo $argv1 | cut -c 1`
+POSL=`echo $argv1 | rev | cut -c 1 | rev`
+TEST=0
+#__________________________________________________________________________________________________________________________________________________________
+#	-eq(=)	-ge(>=)  -gt(>)  -le(<=)  -lt(<)  -ne(!=)
+#__________________________________________________________________________________________________________________________________________________________
+#	FUNKCI
+#
+set -e
+Vypis()
+{
+		if [ "$EDITOR" ]
+		then
+			$EDITOR $1
+		else
+			if [ "$VISUAL" ]
+			then
+				$VISUAL $1
+			else
+				vi $1
+			fi
+		fi
+}
+WediZapisCesta()
+{
+		if [ "$POSL" = "/" ]
+		then
+			echo "Error : Nepovolene jmeno souboru"
+			exit 1
+		else
+			PLL=`echo $1 | awk 'BEGIN{FS="/"}{print $3}'`
+			if [ "$PLL" = "" ]
+			then
+				POL=`echo $1 | awk 'BEGIN{FS="/"}{print $2}'`
+				echo $DATE1";"$DATE2";/;"$POL >> $WEDI_RC
+			else
+				echo $DATE1";"$DATE2";"`echo $1 | rev | sed 's/\//;/' | rev` >> $WEDI_RC
+			fi
+		fi
+}
+WediZapisSoubor()
+{
+		if [ "$POSL" = "/" ]
+		then
+			echo "Error : Nepovolene jmeno souboru"
+			exit 1
+		else
+			echo $DATE1";"$DATE2";"$AKT";"$1 >> $WEDI_RC
+		fi
+}
+Vsechny()
+{
+	for REC in `cat $WEDI_RC`
+	do
+		ADRESAR=`echo $REC | awk 'BEGIN{FS=";"}{print $3}'`
+		if [ "$ADRESAR" = $1 ]
+		then
+			echo $REC | awk 'BEGIN{FS=";"}{print $NF}'
+			TEST=1
+		fi
+	done
+	if [ "$TEST" -eq 0 ]
+	then
+		echo "Error : v te slozce nemate zadny editovany soubor"
+		exit 1
+	else
+		true
+	fi
+}
+Posledni()
+{
+	for REC in `cat $WEDI_RC`
+	do
+		ADRESAR=`echo $REC | awk 'BEGIN{FS=";"}{print $3}'`
+		if [ "$ADRESAR" = $1 ]
+		then
+			RUBISH=`echo $REC | awk 'BEGIN{FS=";"}{print $NF}'`
+		fi
+	done
+	SOUB=`echo $RUBISH | awk 'BEGIN{FS="\n"}{print $NF}'`
+	if [ "$1$SOUB" = $1 ]
+	then
+		echo "Error : v te slozce nemate zadny editovany soubor"
+		exit 1
+	else
+		if [ "$1" = "/" ]
+		then
+			Vypis $1$SOUB
+			echo $DATE1";"$DATE2";"$1";"$SOUB >> $WEDI_RC
+		else	
+			Vypis $1/$SOUB
+			echo $DATE1";"$DATE2";"$1";"$SOUB >> $WEDI_RC
+		fi
+	fi
+}
+Nejcastej()
+{
+	CES=`real $1`
+	ONE=`Vsechny $CES | sort | uniq -c | sort -r | sed 's/ /;/g' | sed 's/;;;;;;//g' | tr '\n' \;\  | awk 'BEGIN{FS=";"}{print $1}'`
+	TWO=`Vsechny $CES | sort | uniq -c | sort -r | sed 's/ /;/g' | sed 's/;;;;;;//g' | tr '\n' \;\  | awk 'BEGIN{FS=";"}{print $2}'`
+	THREE=`Vsechny $CES | sort | uniq -c | sort -r | sed 's/ /;/g' | sed 's/;;;;;;//g' | tr '\n' \;\  | awk 'BEGIN{FS=";"}{print $3}'`
+	if [ ! "$ONE" ]
+	then
+		echo "Error : v te slozce nemate zadny editovany soubor"
+		exit 1
+	fi
+	if [ ! "$THREE" ]
+	then
+		echo $DATE1";"$DATE2";"$CES";"$TWO >> $WEDI_RC
+		Vypis $CES/$TWO
+		exit 0
+	fi
+
+	if [ "$ONE" \> "$THREE" ]
+	then
+		echo $DATE1";"$DATE2";"$CES";"$TWO >> $WEDI_RC
+		Vypis $CES/$TWO
+		exit 0
+				
+	elif [ "$ONE" = "$THREE" ]
+	then
+		echo "Error : jsou dva takovych souboru"
+		exit 1
+	fi
+}
+
+ZACATEK=0
+KONEC=`date +%s`
+After()
+{
+	STRED=`date -d $1 +%s`
+	for ALL in `cat $WEDI_RC`
+	do
+		NEW=`echo $ALL | awk 'BEGIN{FS=";"}{print $1}'`
+		CAS=`date -d $NEW +%s`
+		KONT=$(($STRED-$CAS))
+
+		ADRESAR=`echo $ALL | awk 'BEGIN{FS=";"}{print $3}'`
+		if [ "$ADRESAR" = $2 ]
+		then
+			if [ $KONT -lt 0 ]
+			then
+				echo $ALL | awk 'BEGIN{FS=";"}{print $NF}'
+			fi
+		fi
+	done
+}
+Before()
+{
+	STRED=`date -d $1 +%s`
+	for ALL in `cat $WEDI_RC`
+	do
+		NEW=`echo $ALL | awk 'BEGIN{FS=";"}{print $1}'`
+		CAS=`date -d $NEW +%s`
+		KONT=$(($STRED-$CAS))
+
+		ADRESAR=`echo $ALL | awk 'BEGIN{FS=";"}{print $3}'`
+		if [ "$ADRESAR" = $2 ]
+		then
+			if [ $KONT -gt 0 ]
+			then
+				echo $ALL | awk 'BEGIN{FS=";"}{print $NF}'
+			fi
+		fi
+	done
+}
+real()
+{
+	if [ $1 = "/" ]
+	then
+		echo "/"
+	fi
+	POSL=`echo $1 | rev | cut -c 1`
+	if [ $POSL = "/" ]
+	then
+		echo $1 | rev | sed 's/\///' | rev
+	else
+		echo $1
+	fi
+
+}
+#_________________________________________________________________________________________________________________________________________________
+#	MAIN`
+if [ "$argc" -gt 3 ]
+then
+	echo "Too many arguments"
+	return 1
+fi
+ 
+if [ WEDI_RC ]
+then
+	true
+else
+	echo "Neni nastavena promena WEDI_RC"
+	return 1
+fi
+
+if [ "$argc" -eq 0 ]
+then
+	Posledni $AKT
+	return 0
+fi
+
+if [ "$argv1" = "-l" ]
+then 
+	if [ "$argc" -eq 2 ]
+	then
+		if [ -d "$argv2" ]
+		then
+		
+			CESTA=`real $argv2`
+
+			Vsechny $CESTA | sort | uniq
+			return 0
+		else
+			echo "Error : 2 argument is not directory"
+			return 1
+		fi
+	elif [ $argc -eq 1 ]
+	then
+		Vsechny $AKT | sort | uniq
+		return 0
+	else
+		echo "Error : Too many arguments"
+		return 1
+	fi
+fi
+
+if [ "$argv1" = "-m" ]
+then
+	if [ "$argc" -eq 1 ] 
+	then
+		Nejcastej $AKT
+		return 0
+	elif [ "$argc" -eq 2 ]
+	then
+		if [ -d "$argv2" ]
+		then
+			Nejcastej $argv2
+			return 0
+		else
+			echo "Error : 2 argument is not directory"
+			return 1
+		fi
+	else 
+		echo "Error : Too many arguments"
+		return 1
+	fi
+fi
+
+if [ "$argv1" = "-a" ]
+then
+	if [ "$argc" -eq 3 ]
+	then
+		After $argv2 `real $argv3`| sort | uniq
+		return 0
+	elif [ "$argc" -eq 2 ]
+	then
+		After $argv2 $AKT | sort | uniq
+		return 0
+	elif [ "$argc" -eq 1 ]
+	then
+		echo "Erroe : Too few arguments"
+		return 1
+	else
+		echo "Error : Too many arguments"
+		return 1
+	fi
+	
+fi
+
+if [ "$argv1" = "-b" ] 
+then
+	if [ "$argc" -eq 3 ]
+	then
+		Before $argv2 `real $argv3`| sort | uniq 
+		return 0
+	elif [ "$argc" -eq 2 ]
+	then
+		Before $argv2 $AKT
+		return 0
+	elif [ "$argc" -eq 1 ]
+	then
+		echo "Erroe : Too few arguments"
+		return 1
+
+	else
+		echo "Error : Too many arguments"
+		return 1
+
+	fi
+fi
+
+if  [ $argc -eq 1 ]
+then 
+	if [ $PRVNI = "/" ]
+	then 
+		if [ -f $argv1 ]
+		then
+			Vypis $argv1
+			WediZapisCesta $argv1
+			
+		elif [ -d $argv1 ]
+		then
+			CESTA=`real $argv1`
+			Posledni $CESTA
+		else
+			Vypis $argv1
+			WediZapisCesta $argv1
+		fi				
+	else
+		WediZapisSoubor $argv1
+		Vypis $argv1
+	fi
+fi
